@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use App\Services\TaskAssignmentService;
 
 class TaskController extends Controller
 {
@@ -37,7 +38,7 @@ class TaskController extends Controller
     /**
      * Menyimpan task baru.
      */
-    public function store(Request $request)
+    public function store(Request $request, TaskAssignmentService $assignmentService) // 1. Service ditambahkan di sini
     {
         // Otorisasi: Memanggil create() di TaskPolicy
         $this->authorize('create', Task::class);
@@ -51,11 +52,11 @@ class TaskController extends Controller
             'due_date' => 'required|date',
         ]);
 
-        if ($user->role === 'manager') {
-            $assignedUser = User::find($validatedData['assigned_to']);
-            if (!$assignedUser || $assignedUser->role !== 'staff') {
-                return response()->json(['message' => 'Manager hanya bisa menugaskan task ke staff.'], 422);
-            }
+        $assignedUser = User::find($validatedData['assigned_to']);
+
+        // 2. Logika validasi yang tadinya panjang, sekarang diganti dengan satu baris ini
+        if (!$assignmentService->canAssign($user, $assignedUser)) {
+            return response()->json(['message' => 'Anda tidak dapat menugaskan task ke pengguna ini.'], 422);
         }
 
         $task = Task::create([
