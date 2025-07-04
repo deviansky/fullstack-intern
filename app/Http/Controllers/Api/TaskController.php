@@ -76,17 +76,28 @@ class TaskController extends Controller
      */
     public function update(Request $request, Task $task)
     {
-        // Otorisasi: Memanggil update() di TaskPolicy
         $this->authorize('update', $task);
+        
+        $user = Auth::user();
 
-        $validatedData = $request->validate([
-            'title' => 'sometimes|required|string|max:255',
-            'description' => 'sometimes|required|string',
-            'status' => ['sometimes', 'required', Rule::in(['pending', 'in progress', 'done'])],
-            'due_date' => 'sometimes|required|date',
-        ]);
-
-        $task->update($validatedData);
+        // PERUBAHAN DI SINI:
+        // Jika yang mengedit adalah manager atau staff, DAN tugas itu untuk dirinya sendiri
+        if (in_array($user->role, ['manager', 'staff']) && $task->assigned_to === $user->id) {
+            // Mereka hanya boleh mengupdate status tugasnya
+            $validatedData = $request->validate([
+                'status' => ['required', Rule::in(['pending', 'in progress', 'done'])],
+            ]);
+            $task->update($validatedData);
+        } else {
+            // Untuk kasus lain (admin, atau manajer mengedit tugas staff), boleh edit semua
+            $validatedData = $request->validate([
+                'title' => 'sometimes|required|string|max:255',
+                'description' => 'sometimes|required|string',
+                'status' => ['sometimes', 'required', Rule::in(['pending', 'in progress', 'done'])],
+                'due_date' => 'sometimes|required|date',
+            ]);
+            $task->update($validatedData);
+        }
 
         return response()->json($task);
     }

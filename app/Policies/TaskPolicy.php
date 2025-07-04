@@ -52,7 +52,13 @@ class TaskPolicy
      */
     public function update(User $user, Task $task): bool
     {
-        // Boleh jika dia yang membuat ATAU dia yang ditugaskan
+        // Jika yang mau edit adalah Manager
+        if ($user->role === 'manager') {
+            // Boleh jika task itu untuk dirinya, atau untuk staff mana pun
+            return $task->assigned_to === $user->id || $task->assignedTo->role === 'staff';
+        }
+
+        // Untuk Staff, hanya boleh jika task itu untuknya atau dibuat olehnya
         return $user->id === $task->created_by || $user->id === $task->assigned_to;
     }
 
@@ -62,8 +68,12 @@ class TaskPolicy
      */
     public function delete(User $user, Task $task): bool
     {
-        // Pemeriksaan admin sudah dilakukan di metode `before`.
-        // Jadi di sini kita hanya perlu memeriksa apakah dia pembuatnya.
+        // Jika yang mau hapus adalah Manager
+        if ($user->role === 'manager') {
+            // Boleh jika dia yang buat, atau task itu untuk staff mana pun
+            return $task->created_by === $user->id || $task->assignedTo->role === 'staff';
+        }
+        // Untuk Staff, hanya boleh jika dia yang buat
         return $user->id === $task->created_by;
     }
 }

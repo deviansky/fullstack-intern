@@ -25,14 +25,14 @@ class UserController extends Controller
         return User::all();
     }
 
-    /**
-     * Menyimpan pengguna baru.
-     */
+    //Menyimpan pengguna baru.
     public function store(Request $request)
     {
-        // Otorisasi: Hanya admin yang boleh membuat pengguna baru
-        if (Auth::user()->role !== 'admin') {
-            abort(403, 'Akses ditolak.');
+        $creator = Auth::user();
+
+        // Otorisasi: Hanya admin dan manager yang boleh
+        if (!in_array($creator->role, ['admin', 'manager'])) {
+            abort(403, 'Anda tidak memiliki akses.');
         }
 
         $validatedData = $request->validate([
@@ -40,15 +40,19 @@ class UserController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
             'role' => ['required', Rule::in(['admin', 'manager', 'staff'])],
-            'status' => 'required|boolean',
         ]);
+
+        // Logika Bisnis: Jika pembuatnya adalah manager, pastikan role yang dibuat adalah staff
+        if ($creator->role === 'manager' && $validatedData['role'] !== 'staff') {
+            return response()->json(['message' => 'Manager hanya dapat membuat pengguna dengan role staff.'], 422);
+        }
 
         $user = User::create([
             'name' => $validatedData['name'],
             'email' => $validatedData['email'],
             'password' => Hash::make($validatedData['password']),
             'role' => $validatedData['role'],
-            'status' => $validatedData['status'],
+            'status' => true, // Default status aktif
         ]);
 
         return response()->json($user, 201);

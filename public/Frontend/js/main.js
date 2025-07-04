@@ -45,16 +45,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let allTasks = [];
         let userMap = new Map();
 
-        const views = {
-            tasks: document.getElementById('tasks-view'),
-            users: document.getElementById('users-view'),
-            logs: document.getElementById('logs-view'),
-        };
-        const navLinks = {
-            tasks: document.getElementById('nav-tasks'),
-            users: document.getElementById('nav-users'),
-            logs: document.getElementById('nav-logs'),
-        };
+        const views = { tasks: document.getElementById('tasks-view'), users: document.getElementById('users-view'), logs: document.getElementById('logs-view') };
+        const navLinks = { tasks: document.getElementById('nav-tasks'), users: document.getElementById('nav-users'), logs: document.getElementById('nav-logs') };
         const pageTitle = document.getElementById('page-title');
         const taskListContainer = document.getElementById('task-list');
         const editTaskForm = document.getElementById('edit-task-form');
@@ -76,39 +68,44 @@ document.addEventListener('DOMContentLoaded', () => {
             const progressTasks = tasks.filter(t => t.status === 'in progress').length;
             const doneTasks = tasks.filter(t => t.status === 'done').length;
             statsContainer.innerHTML = `
-            <div class="col-md-4">
-                <div class="card text-center text-bg-secondary mb-3">
-                    <div class="card-body">
-                        <h2 class="card-title">${pendingTasks}</h2>
-                        <p class="card-text">Tugas Pending</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card text-center text-bg-warning mb-3">
-                    <div class="card-body">
-                        <h2 class="card-title">${progressTasks}</h2>
-                        <p class="card-text">Tugas Proggres</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4"><div class="card text-center text-bg-success mb-3"><div class="card-body"><h2 class="card-title">${doneTasks}</h2><p class="card-text">Tugas Selesai</p></div></div></div>`;
+                <div class="col-md-4"><div class="card text-center text-bg-secondary mb-3"><div class="card-body py-4"><h2 class="card-title">${pendingTasks}</h2><p class="card-text">Tugas Pending</p></div></div></div>
+                <div class="col-md-4"><div class="card text-center text-bg-warning mb-3"><div class="card-body py-4"><h2 class="card-title">${progressTasks}</h2><p class="card-text">Tugas Progress</p></div></div></div>
+                <div class="col-md-4"><div class="card text-center text-bg-success mb-3"><div class="card-body py-4"><h2 class="card-title">${doneTasks}</h2><p class="card-text">Tugas Selesai</p></div></div></div>
+            `;
         }
 
         function renderTasks(tasks) {
-            if (!taskListContainer) return;
-            taskListContainer.innerHTML = '';
-            if (tasks.length === 0) { taskListContainer.innerHTML = '<p class="col-12">Tidak ada tugas untuk ditampilkan.</p>'; return; }
+            const taskList = document.getElementById('task-list');
+            if (!taskList) return;
+
+            taskList.innerHTML = '';
+            if (tasks.length === 0) {
+                taskList.innerHTML = '<p class="col-12">Tidak ada tugas untuk ditampilkan.</p>';
+                return;
+            }
 
             tasks.forEach(task => {
-                const assignedUser = task.assigned_to || { name: 'N/A' };
-                const statusInfo = { 'pending': { class: 'text-bg-secondary', text: 'Pending' }, 'in progress': { class: 'text-bg-primary', text: 'In Progress' }, 'done': { class: 'text-bg-success', text: 'Done' }};
+                const assignedUser = task.assigned_to || { name: 'N/A', role: null };
+                const statusInfo = { 'pending': { class: 'text-bg-secondary', text: 'Pending' }, 'in progress': { class: 'text-bg-warning', text: 'In Progress' }, 'done': { class: 'text-bg-success', text: 'Done' }};
                 const currentStatus = statusInfo[task.status] || { class: 'text-bg-dark', text: 'Unknown' };
+                
                 let buttons = '';
-                const canUpdate = userData.role === 'admin' || userData.id === task.created_by || userData.id === task.assigned_to;
-                const canDelete = userData.role === 'admin' || userData.id === task.created_by;
-                if (canUpdate) buttons += `<button class="btn btn-sm btn-warning me-2 edit-btn" data-task-id="${task.id}">Edit</button>`;
+
+                // --- PERUBAHAN DI SINI ---
+                // Logika baru untuk menampilkan tombol sesuai hak akses Manajer
+                const canUpdate = userData.role === 'admin' 
+                                || userData.id === task.created_by 
+                                || userData.id === assignedUser.id
+                                || (userData.role === 'manager' && assignedUser.role === 'staff');
+
+                const canDelete = userData.role === 'admin' 
+                                || userData.id === task.created_by
+                                || (userData.role === 'manager' && assignedUser.role === 'staff');
+
+                if (canUpdate) buttons += `<button class="btn btn-sm btn-warning edit-btn" data-task-id="${task.id}">Edit</button>`;
                 if (canDelete) buttons += `<button class="btn btn-sm btn-danger delete-btn" data-task-id="${task.id}">Delete</button>`;
+                // --- BATAS PERUBAHAN ---
+
                 const cardWrapper = document.createElement('div');
                 cardWrapper.className = 'col-md-6 col-lg-4 mb-4';
                 cardWrapper.innerHTML = `
@@ -130,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                         </div>
                     </div>`;
-                taskListContainer.appendChild(cardWrapper);
+                taskList.appendChild(cardWrapper);
             });
         }
 
@@ -138,13 +135,9 @@ document.addEventListener('DOMContentLoaded', () => {
             showView('tasks');
             if (taskListContainer) taskListContainer.innerHTML = '<p class="col-12">Memuat data...</p>';
             try {
-                const [tasksResponse, usersResponse] = await Promise.all([ fetch('/api/tasks', { headers }), fetch('/api/users', { headers }) ]);
-                if (!tasksResponse.ok || !usersResponse.ok) throw new Error('Gagal memuat data awal.');
-                
-                allTasks = await tasksResponse.json();
-                const users = await usersResponse.json();
-                userMap = new Map(users.map(user => [user.id, user]));
-
+                const response = await fetch('/api/tasks', { headers });
+                if (!response.ok) throw new Error('Gagal memuat tugas.');
+                allTasks = await response.json();
                 renderStats(allTasks);
                 renderTasks(allTasks);
             } catch (error) {
@@ -184,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 logs.forEach(log => {
                     const logEntry = document.createElement('div');
                     logEntry.className = 'alert alert-secondary';
-                    logEntry.textContent = `[${new Date(log.logged_at).toLocaleString()}] [${log.action}] - ${log.description}`;
+                    logEntry.textContent = `[${new Date(log.logged_at).toLocaleString('id-ID')}] [${log.action}] - ${log.description}`;
                     logList.appendChild(logEntry);
                 });
             } catch(error) {
@@ -194,14 +187,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- Inisialisasi & Event Listeners ---
         document.getElementById('user-info').textContent = `${userData.name} (${userData.role})`;
-        if (userData.role === 'admin') {
+        if (userData.role === 'admin' || userData.role === 'manager') {
             document.getElementById('nav-users-li').classList.remove('d-none');
+        }
+        if (userData.role === 'admin') {
             document.getElementById('nav-logs-li').classList.remove('d-none');
+        }
+        if (userData.role === 'staff') {
+            const createTaskButton = document.querySelector('a[href="create-task.html"]');
+            if (createTaskButton) {
+                createTaskButton.classList.add('d-none');
+            }
         }
 
         navLinks.tasks.addEventListener('click', (e) => { e.preventDefault(); fetchAndRenderTasks(); });
-        if(userData.role === 'admin') {
+        if (userData.role === 'admin' || userData.role === 'manager') {
             navLinks.users.addEventListener('click', (e) => { e.preventDefault(); showUsersView(); });
+        }
+        if (userData.role === 'admin') {
             navLinks.logs.addEventListener('click', (e) => { e.preventDefault(); showLogsView(); });
         }
 
@@ -212,18 +215,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 const taskId = e.target.dataset.taskId;
                 if (confirm('Yakin ingin menghapus tugas ini?')) {
                     fetch(`/api/tasks/${taskId}`, { method: 'DELETE', headers })
-                        .then(response => { if (!response.ok) throw new Error('Gagal menghapus tugas.'); alert('Tugas berhasil dihapus.'); fetchAndRenderTasks(); })
-                        .catch(error => alert(error.message));
+                        .then(res => { if (!res.ok) throw new Error('Gagal hapus'); alert('Tugas dihapus'); fetchAndRenderTasks(); })
+                        .catch(err => alert(err.message));
                 }
             }
             if (e.target.classList.contains('edit-btn')) {
                 const taskId = e.target.dataset.taskId;
                 const taskToEdit = allTasks.find(t => t.id === taskId);
+
                 if (taskToEdit) {
+                    const titleInput = document.getElementById('edit-task-title');
+                    const descInput = document.getElementById('edit-task-description');
+                    const statusInput = document.getElementById('edit-task-status');
+
+                    // Isi form modal dengan data
                     document.getElementById('edit-task-id').value = taskToEdit.id;
-                    document.getElementById('edit-task-title').value = taskToEdit.title;
-                    document.getElementById('edit-task-description').value = taskToEdit.description;
-                    document.getElementById('edit-task-status').value = taskToEdit.status;
+                    titleInput.value = taskToEdit.title;
+                    descInput.value = taskToEdit.description;
+                    statusInput.value = taskToEdit.status;
+
+                    // PERUBAHAN DI SINI:
+                    // Jika yang login adalah manager/staff dan tugas ini untuknya
+                    if (['manager', 'staff'].includes(userData.role) && taskToEdit.assigned_to.id === userData.id) {
+                        // Nonaktifkan judul & deskripsi, hanya status yang bisa diubah
+                        titleInput.disabled = true;
+                        descInput.disabled = true;
+                        statusInput.disabled = false;
+                    } else {
+                        // Untuk semua kasus lain (admin, atau manajer/staff edit tugas buatan sendiri), semua aktif
+                        titleInput.disabled = false;
+                        descInput.disabled = false;
+                        statusInput.disabled = false;
+                    }
+
                     const editModal = new bootstrap.Modal(document.getElementById('editTaskModal'));
                     editModal.show();
                 }
@@ -233,13 +257,16 @@ document.addEventListener('DOMContentLoaded', () => {
         editTaskForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const taskId = document.getElementById('edit-task-id').value;
-            const updatedData = { title: document.getElementById('edit-task-title').value, description: document.getElementById('edit-task-description').value, status: document.getElementById('edit-task-status').value };
+            const updatedData = {};
+            if (!document.getElementById('edit-task-title').disabled) updatedData.title = document.getElementById('edit-task-title').value;
+            if (!document.getElementById('edit-task-description').disabled) updatedData.description = document.getElementById('edit-task-description').value;
+            if (!document.getElementById('edit-task-status').disabled) updatedData.status = document.getElementById('edit-task-status').value;
+
             try {
                 const response = await fetch(`/api/tasks/${taskId}`, { method: 'PUT', headers, body: JSON.stringify(updatedData) });
-                if (!response.ok) throw new Error('Gagal mengupdate tugas.');
+                if (!response.ok) { const err = await response.json(); throw new Error(err.message || 'Gagal mengupdate tugas.'); }
                 alert('Tugas berhasil diperbarui.');
-                const modal = bootstrap.Modal.getInstance(document.getElementById('editTaskModal'));
-                if (modal) modal.hide();
+                bootstrap.Modal.getInstance(document.getElementById('editTaskModal')).hide();
                 fetchAndRenderTasks();
             } catch (error) {
                 alert(error.message);
@@ -250,49 +277,72 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // =================================================================
-    // LOGIKA HANYA UNTUK HALAMAN CREATE TASK
+    // LOGIKA HANYA UNTUK HALAMAN FORM
     // =================================================================
-    const createTaskForm = document.getElementById('create-task-form');
-    if (createTaskForm) {
-        if (!token) { window.location.href = 'index.html'; return; }
-        const assignSelect = document.getElementById('new-task-assign-to');
-        fetch('/api/users', { headers }).then(res => res.json()).then(users => {
-            assignSelect.innerHTML = '';
-            users.forEach(user => { const option = document.createElement('option'); option.value = user.id; option.textContent = `${user.name} (${user.role})`; assignSelect.appendChild(option); });
-        }).catch(err => console.error("Gagal memuat user untuk dropdown", err));
-        
-        createTaskForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const taskData = { title: document.getElementById('new-task-title').value, description: document.getElementById('new-task-description').value, assigned_to: document.getElementById('new-task-assign-to').value, due_date: document.getElementById('new-task-due-date').value };
-            try {
-                const response = await fetch('/api/tasks', { method: 'POST', headers, body: JSON.stringify(taskData) });
-                if (!response.ok) { const err = await response.json(); throw new Error(err.message || 'Gagal menyimpan.'); }
-                alert('Task berhasil dibuat!');
-                window.location.href = 'dashboard.html';
-            } catch (error) {
-                alert(error.message);
-            }
-        });
-    }
+    const handleFormSubmission = (formId, apiUrl) => {
+        const form = document.getElementById(formId);
+        if (form) {
+            if (!token) { window.location.href = 'index.html'; return; }
 
-    // =================================================================
-    // LOGIKA HANYA UNTUK HALAMAN CREATE USER
-    // =================================================================
-    const createUserForm = document.getElementById('create-user-form');
-    if (createUserForm) {
-        if (!token || userData.role !== 'admin') { window.location.href = 'index.html'; return; }
-        
-        createUserForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const newUserData = { name: document.getElementById('new-user-name').value, email: document.getElementById('new-user-email').value, password: document.getElementById('new-user-password').value, role: document.getElementById('new-user-role').value, status: true };
-            try {
-                const response = await fetch('/api/users', { method: 'POST', headers, body: JSON.stringify(newUserData) });
-                if (!response.ok) { const err = await response.json(); throw new Error(err.message || 'Gagal membuat user.'); }
-                alert('User baru berhasil dibuat!');
-                window.location.href = 'dashboard.html';
-            } catch (error) {
-                alert(error.message);
+            // Logika spesifik untuk form create-task (isi dropdown)
+            if (formId === 'create-task-form') {
+                const assignSelect = document.getElementById('new-task-assign-to');
+                fetch('/api/users', { headers })
+                    .then(res => res.json())
+                    .then(users => {
+                        assignSelect.innerHTML = '<option value="">Pilih Pengguna...</option>';
+                        
+                        // --- PERUBAHAN DI SINI ---
+                        let usersToDisplay = users;
+
+                        // Jika yang login adalah manager, filter hanya untuk menampilkan staff
+                        if (userData.role === 'manager') {
+                            usersToDisplay = users.filter(user => user.role === 'staff');
+                        }
+                        // --- BATAS PERUBAHAN ---
+
+                        usersToDisplay.forEach(user => {
+                            const option = document.createElement('option');
+                            option.value = user.id;
+                            option.textContent = `${user.name} (${user.role})`;
+                            assignSelect.appendChild(option);
+                        });
+                    })
+                    .catch(err => console.error("Gagal memuat user untuk dropdown", err));
             }
-        });
-    }
+
+            // Logika spesifik untuk form create-user (kunci role untuk manager)
+            if (formId === 'create-user-form' && userData.role === 'manager') {
+                const roleDropdown = document.getElementById('new-user-role');
+                roleDropdown.value = 'staff';
+                roleDropdown.disabled = true;
+            }
+
+            form.addEventListener('submit', async (e) => {
+                if (!form.checkValidity()) {
+                    e.preventDefault(); e.stopPropagation(); form.classList.add('was-validated'); return;
+                }
+                e.preventDefault();
+                form.classList.remove('was-validated');
+
+                const formData = new FormData(form);
+                const data = Object.fromEntries(formData.entries());
+
+                if (data.role === undefined && userData.role === 'manager') { data.role = 'staff'; }
+
+                try {
+                    const response = await fetch(apiUrl, { method: 'POST', headers, body: JSON.stringify(data) });
+                    if (!response.ok) { const err = await response.json(); throw new Error(err.message || 'Gagal menyimpan data.'); }
+                    alert(formId === 'create-task-form' ? 'Task berhasil dibuat!' : 'User berhasil dibuat!');
+                    window.location.href = 'dashboard.html';
+                } catch (error) {
+                    alert(error.message);
+                }
+            });
+        }
+    };
+
+    // Pemanggilan fungsi tetap sama
+    handleFormSubmission('create-task-form', '/api/tasks');
+    handleFormSubmission('create-user-form', '/api/users');
 });
