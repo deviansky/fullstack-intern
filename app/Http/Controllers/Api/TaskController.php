@@ -17,7 +17,6 @@ class TaskController extends Controller
      */
     public function index()
     {
-        // Otorisasi: Memanggil viewAny() di TaskPolicy
         $this->authorize('viewAny', Task::class);
 
         $user = Auth::user();
@@ -40,7 +39,6 @@ class TaskController extends Controller
      */
     public function store(Request $request, TaskAssignmentService $assignmentService) // 1. Service ditambahkan di sini
     {
-        // Otorisasi: Memanggil create() di TaskPolicy
         $this->authorize('create', Task::class);
 
         $user = Auth::user();
@@ -53,8 +51,6 @@ class TaskController extends Controller
         ]);
 
         $assignedUser = User::find($validatedData['assigned_to']);
-
-        // 2. Logika validasi yang tadinya panjang, sekarang diganti dengan satu baris ini
         if (!$assignmentService->canAssign($user, $assignedUser)) {
             return response()->json(['message' => 'Anda tidak dapat menugaskan task ke pengguna ini.'], 422);
         }
@@ -77,19 +73,14 @@ class TaskController extends Controller
     public function update(Request $request, Task $task)
     {
         $this->authorize('update', $task);
-        
         $user = Auth::user();
 
-        // PERUBAHAN DI SINI:
-        // Jika yang mengedit adalah manager atau staff, DAN tugas itu untuk dirinya sendiri
         if (in_array($user->role, ['manager', 'staff']) && $task->assigned_to === $user->id) {
-            // Mereka hanya boleh mengupdate status tugasnya
             $validatedData = $request->validate([
                 'status' => ['required', Rule::in(['pending', 'in progress', 'done'])],
             ]);
             $task->update($validatedData);
         } else {
-            // Untuk kasus lain (admin, atau manajer mengedit tugas staff), boleh edit semua
             $validatedData = $request->validate([
                 'title' => 'sometimes|required|string|max:255',
                 'description' => 'sometimes|required|string',
@@ -109,9 +100,7 @@ class TaskController extends Controller
     {
         // Otorisasi: Memanggil delete() di TaskPolicy
         $this->authorize('delete', $task);
-
         $task->delete();
-        
         return response()->json(['message' => 'Task berhasil dihapus.']);
     }
 }

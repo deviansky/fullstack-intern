@@ -16,12 +16,10 @@ class UserController extends Controller
      */
     public function index()
     {
-        // Otorisasi: Hanya admin dan manager yang boleh mengakses
         $userRole = Auth::user()->role;
         if ($userRole !== 'admin' && $userRole !== 'manager') {
             abort(403, 'Akses ditolak.');
         }
-
         return User::all();
     }
 
@@ -29,8 +27,6 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $creator = Auth::user();
-
-        // Otorisasi: Hanya admin dan manager yang boleh
         if (!in_array($creator->role, ['admin', 'manager'])) {
             abort(403, 'Anda tidak memiliki akses.');
         }
@@ -42,7 +38,6 @@ class UserController extends Controller
             'role' => ['required', Rule::in(['admin', 'manager', 'staff'])],
         ]);
 
-        // Logika Bisnis: Jika pembuatnya adalah manager, pastikan role yang dibuat adalah staff
         if ($creator->role === 'manager' && $validatedData['role'] !== 'staff') {
             return response()->json(['message' => 'Manager hanya dapat membuat pengguna dengan role staff.'], 422);
         }
@@ -52,7 +47,7 @@ class UserController extends Controller
             'email' => $validatedData['email'],
             'password' => Hash::make($validatedData['password']),
             'role' => $validatedData['role'],
-            'status' => true, // Default status aktif
+            'status' => true,
         ]);
 
         return response()->json($user, 201);

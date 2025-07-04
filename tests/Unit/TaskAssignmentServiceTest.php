@@ -12,12 +12,9 @@ class TaskAssignmentServiceTest extends TestCase
     public function manager_can_assign_a_task_to_a_staff_member(): void
     {
         $service = new TaskAssignmentService();
-
-        // Buat objek pengguna di memori, bukan dari database
         $manager = new User(['role' => 'manager']);
         $staff = new User(['role' => 'staff']);
 
-        // Panggil metode canAssign dan pastikan hasilnya true
         $this->assertTrue($service->canAssign($manager, $staff));
     }
 
@@ -29,7 +26,6 @@ class TaskAssignmentServiceTest extends TestCase
         $manager = new User(['role' => 'manager']);
         $admin = new User(['role' => 'admin']);
 
-        // Panggil metode canAssign dan pastikan hasilnya false
         $this->assertFalse($service->canAssign($manager, $admin));
     }
 

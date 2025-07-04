@@ -9,9 +9,6 @@ use Illuminate\Support\Facades\Auth;
 
 class ActivityLogController extends Controller
 {
-    /**
-     * Menampilkan daftar activity log.
-     */
     public function index()
     {
         // Otorisasi: Hanya admin yang boleh melihat log

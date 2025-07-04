@@ -12,17 +12,14 @@ class TaskAssignmentService
      */
     public function canAssign(User $assigner, User $assignee): bool
     {
-        // Admin bisa menugaskan ke siapa saja
         if ($assigner->role === 'admin') {
             return true;
         }
 
-        // Manager hanya bisa menugaskan ke staff
         if ($assigner->role === 'manager' && $assignee->role === 'staff') {
             return true;
         }
 
-        // Selain itu, tidak boleh
         return false;
     }
 }

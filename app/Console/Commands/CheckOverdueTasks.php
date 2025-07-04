@@ -16,15 +16,13 @@ class CheckOverdueTasks extends Command
     {
         $this->info('Checking for overdue tasks...');
 
-        // Cari task yang due_date-nya sudah lewat dan statusnya bukan 'done'
         $overdueTasks = Task::where('due_date', '<', Carbon::now())
                             ->where('status', '!=', 'done')
                             ->get();
 
         foreach ($overdueTasks as $task) {
-            // Buat log untuk setiap task yang overdue
             ActivityLog::create([
-                'user_id' => $task->created_by, // Log diatribusikan ke pembuat task
+                'user_id' => $task->created_by,
                 'action' => 'task_overdue',
                 'description' => 'Task overdue: (' . $task->id . ') - ' . $task->title,
             ]);

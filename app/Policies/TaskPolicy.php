@@ -17,7 +17,7 @@ class TaskPolicy
         if ($user->role === 'admin') {
             return true;
         }
-        return null; // Lanjutkan ke metode otorisasi lainnya
+        return null;
     }
 
     /**
@@ -52,28 +52,21 @@ class TaskPolicy
      */
     public function update(User $user, Task $task): bool
     {
-        // Jika yang mau edit adalah Manager
         if ($user->role === 'manager') {
-            // Boleh jika task itu untuk dirinya, atau untuk staff mana pun
             return $task->assigned_to === $user->id || $task->assignedTo->role === 'staff';
         }
 
-        // Untuk Staff, hanya boleh jika task itu untuknya atau dibuat olehnya
         return $user->id === $task->created_by || $user->id === $task->assigned_to;
     }
 
     /**
      * Menentukan apakah pengguna dapat menghapus task.
-     * [cite_start]Aturan: Hanya admin atau creator [cite: 59]
      */
     public function delete(User $user, Task $task): bool
     {
-        // Jika yang mau hapus adalah Manager
         if ($user->role === 'manager') {
-            // Boleh jika dia yang buat, atau task itu untuk staff mana pun
             return $task->created_by === $user->id || $task->assignedTo->role === 'staff';
         }
-        // Untuk Staff, hanya boleh jika dia yang buat
         return $user->id === $task->created_by;
     }
 }

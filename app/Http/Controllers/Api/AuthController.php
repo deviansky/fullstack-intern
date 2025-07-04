@@ -21,11 +21,7 @@ class AuthController extends Controller
         if (!Auth::attempt($credentials)) {
             return response()->json(['message' => 'Email atau password salah.'], 401);
         }
-
-        // Dapatkan data pengguna
         $user = User::where('email', $credentials['email'])->first();
-
-        // Periksa status pengguna aktif
         if (!$user->status) {
             return response()->json(['message' => 'Akun Anda tidak aktif.'], 403); //
         }

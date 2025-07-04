@@ -19,7 +19,6 @@ class TaskFactory extends Factory
             'description' => fake()->paragraph(),
             'status' => 'pending',
             'due_date' => fake()->dateTimeBetween('+1 day', '+1 month'),
-            // Secara default, buat user baru untuk created_by dan assigned_to
             'created_by' => User::factory(),
             'assigned_to' => User::factory(),
         ];
