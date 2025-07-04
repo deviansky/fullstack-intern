@@ -3,5 +3,9 @@
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
+    return redirect('/frontend/index.html');
+});
+
+Route::get('/dashboard', function () {
+    return redirect('/frontend/dashboard.html');
 });
